@@ -1,0 +1,4 @@
+serialset.c:   set the serial port burdate,for example:./serialset /dev/ttyAMA1 115200
+
+spitest.c:	test the spi speed,use cmd command,for example:./spitest -O -H -b 16 -s 25000000 -i temp_1024.file
+
