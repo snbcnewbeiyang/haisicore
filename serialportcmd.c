@@ -7,13 +7,21 @@
 # include <errno.h>
 # include <unistd.h>
 # include <string.h>
+# include <getopt.h>
 
-int main(void)
+void parse_opts(int argc,char *argv[]);
+
+char* device;
+
+int main(int argc,char *argv[])
 {
-    int fd=open("/dev/ttyAMA2",O_RDWR|O_NOCTTY|O_NDELAY);
+
+	parse_opts(argc,argv);
+
+    int fd=open(device,O_RDWR|O_NOCTTY|O_NDELAY);
     if(fd<0)
     {
-        printf("open the uart ttyAMA2 failed\n");
+        printf("open the %s failed\n",device);
         return -1;
     }
 
@@ -33,7 +41,8 @@ int main(void)
 
 //set the data(8bit,1 byte==char)
     old.c_cflag &= ~CSIZE;
-    old.c_cflag |= CS8|CRTSCTS;
+//    old.c_cflag |= CS8|CRTSCTS;
+    old.c_cflag |= CS8;
 //set the stop(1bit)
     old.c_cflag &= ~CSTOPB;
 //set the check(no)
@@ -73,18 +82,41 @@ int main(void)
 
     int i;
     char recvbuf[128]={0};
- //   while(1)
- //   {
-        sleep(1);
-        ret=read(fd,recvbuf,128);
-        if(ret>0)
-        {
-            for(i=0;i<ret;i++)
-            {
-               printf("%02x ",recvbuf[i]);
-            }
-            printf("\n");
-        }		
- //   }
+//   while(1)
+ //  {
+//        sleep(1);
+  //      ret=read(fd,recvbuf,128);
+    //    if(ret>0)
+    //    {
+     //       for(i=0;i<ret;i++)
+       //     {
+      //         printf("%02x ",recvbuf[i]);
+      //      }
+      //      printf("\n");
+    //    }		
+  // }
     close(fd);
+}
+
+void parse_opts(int argc,char *argv[])
+{
+	static const struct option opts[]=
+	{
+		{"devices",required_argument,NULL,'d'}
+	};
+
+	int c = -1;
+	while((c = getopt_long(argc,argv,"d:",opts,NULL)) !=-1 )
+	{
+		if(c == -1)
+			break;
+		switch(c)
+		{
+			case 'd':
+				device = optarg;
+				break;
+			default:
+				break;
+		}
+	}
 }
