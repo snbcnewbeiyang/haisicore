@@ -13,7 +13,8 @@ void main(void)
 	while(c = getchar() != EOF)
 	{
 		charnum++;
-		
+
+		//判断单词的标准
 		if(c == ' ' || c == '\n' || c == '\t')
 		{
 			stat == OUT;

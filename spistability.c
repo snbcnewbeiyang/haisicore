@@ -2,7 +2,7 @@
 #include <time.h>
 #include <stdlib.h>
 #include <string.h>
-#include "serialsenddata.h"
+#include "spisenddata.h"
 
 #define MIN_FILE_CHAR_SIZE 1
 #define MAX_FILE_CHAR_SIZE 4096
@@ -17,6 +17,7 @@ char getthecontrol();
 void main(void)
 {
 	//get rand so many char
+	printf("---------");
 	srand((unsigned int)(time(NULL)));
 	int randnum = my_rand(MIN_FILE_CHAR_SIZE,MAX_FILE_CHAR_SIZE);
 	char data[randnum];
@@ -43,7 +44,7 @@ void main(void)
 		char aa = getthecontrol();
 		printf("%c\n",aa);
 		
-// send file data
+// send file data,0 is available,1 is unavailable.
 		if('0' == aa)
 		{
 			spisenddata("/result.txt");

@@ -4,3 +4,6 @@ spitest.c:	test the spi speed,use cmd command,for example:./spitest -O -H -b 16 
 
 serialportdata:	uart,test the wifi and bt;
 
+spistability.c:  test the spi stability;
+spisenddata.c:	send file data throught spi.
+spisenddata.h:	.h of spisenddata.c

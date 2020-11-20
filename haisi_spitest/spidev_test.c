@@ -11,6 +11,12 @@
  * Cross-compile with cross-gcc -I/path/to/cross-kernel/include
  */
 
+ /*
+add by wupeiping wwx333711
+1  transmission test command: ./spidev_test -D /dev/spidev0.0 -l -i source -o /root/123 -s 50000
+2  print transmission speed    : ./spidev_test -D /dev/spidev0.0 -l -S 100 -I 100000
+ */
+
 #include <stdint.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -18,15 +24,17 @@
 #include <string.h>
 #include <getopt.h>
 #include <fcntl.h>
+#include <time.h>
 #include <sys/ioctl.h>
 #include <linux/ioctl.h>
 #include <sys/stat.h>
 #include <linux/types.h>
+//#include <linux/spi/spidev.h>
 #include "spidev.h"
+
 #include <sys/time.h>
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
 static void pabort(const char *s)
 {
 	perror(s);
@@ -41,7 +49,9 @@ static char *output_file;
 static uint32_t speed = 500000;
 static uint16_t delay;
 static int verbose;
-static int times = 1;
+static int transfer_size;
+static int iterations;
+static int interval = 5; /* interval in seconds for showing transfer rate */
 
 uint8_t default_tx[] = {
 	0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
@@ -139,45 +149,14 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 			tr.tx_buf = 0;
 	}
 
-	//get usec of send data.#include <sys/time.h>
-	struct timeval start_time;
-	struct timeval end_time;
-	gettimeofday(&start_time,NULL);
-	/*printf("start read gpio value-----\n");
-	FILE* gpio55=fopen("/sys/class/gpio/gpio55/value","r");
-	if(gpio55<0)
-	{
-		printf("open the gpio55 is wrong");
-		return;
-	}
-	int aaa=0;
-	fscanf(gpio55,"%d",&aaa);
-	printf("the gpio55 value is %d\n",aaa);*/
-	int u=0;
-	while(u<times)
-	{
-		ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
-	/*	if (ret < 1)
-		{
-			pabort("can't send spi message");
-			break;
-		}*/
-		u++;
-	}
-	gettimeofday(&end_time,NULL);
-	double dif_sec=end_time.tv_sec-start_time.tv_sec;
+	ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
 	if (ret < 1)
 		pabort("can't send spi message");
-	double dif_usec=end_time.tv_usec-start_time.tv_usec;
-	printf("runtime:sec:%f , usec:%f\n", dif_sec,dif_usec);
-	
-	if (ret < 1)
-		pabort("can't send spi message");
-
 	if (verbose)
 		hex_dump(tx, len, 32, "TX");
 
 	if (output_file) {
+		printf("output_file :%s\n",output_file);
 		out_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 		if (out_fd < 0)
 			pabort("could not open output file");
@@ -189,13 +168,13 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 		close(out_fd);
 	}
 
-	if (verbose || !output_file)
+	if (verbose)
 		hex_dump(rx, len, 32, "RX");
 }
 
 static void print_usage(const char *prog)
 {
-	printf("Usage: %s [-DsbdlHOLC3]\n", prog);
+	printf("Usage: %s [-DsbdlHOLC3vpNR24SI]\n", prog);
 	puts("  -D --device   device to use (default /dev/spidev1.1)\n"
 	     "  -s --speed    max speed (Hz)\n"
 	     "  -d --delay    delay (usec)\n"
@@ -213,7 +192,9 @@ static void print_usage(const char *prog)
 	     "  -N --no-cs    no chip select\n"
 	     "  -R --ready    slave pulls low to pause\n"
 	     "  -2 --dual     dual transfer\n"
-	     "  -4 --quad     quad transfer\n");
+	     "  -4 --quad     quad transfer\n"
+	     "  -S --size     transfer size\n"
+	     "  -I --iter     iterations\n");
 	exit(1);
 }
 
@@ -238,12 +219,14 @@ static void parse_opts(int argc, char *argv[])
 			{ "dual",    0, 0, '2' },
 			{ "verbose", 0, 0, 'v' },
 			{ "quad",    0, 0, '4' },
-			{ "times",    1, 0, 't' },
+			{ "size",    1, 0, 'S' },
+			{ "input_tx",    1, 0, 'p' },
+			{ "iter",    1, 0, 'I' },
 			{ NULL, 0, 0, 0 },
 		};
 		int c;
 
-		c = getopt_long(argc, argv, "D:s:d:b:t:i:o:lHOLC3NR24p:v",
+		c = getopt_long(argc, argv, "D:s:d:b:i:o:lHOLC3NR24p:vS:I:",
 				lopts, NULL);
 
 		if (c == -1)
@@ -304,8 +287,11 @@ static void parse_opts(int argc, char *argv[])
 		case '4':
 			mode |= SPI_TX_QUAD;
 			break;
-		case 't':
-			times = atoi(optarg);
+		case 'S':
+			transfer_size = atoi(optarg);
+			break;
+		case 'I':
+			iterations = atoi(optarg);
 			break;
 		default:
 			print_usage(argv[0]);
@@ -352,7 +338,7 @@ static void transfer_file(int fd, char *filename)
 		pabort("can't stat input file");
 
 	tx_fd = open(filename, O_RDONLY);
-	if (fd < 0)
+	if (tx_fd < 0)
 		pabort("can't open input file");
 
 	tx = malloc(sb.st_size);
@@ -373,12 +359,62 @@ static void transfer_file(int fd, char *filename)
 	close(tx_fd);
 }
 
-//int argc is argc num
-//./spitest is first argc in argv.
+static uint64_t _read_count;
+static uint64_t _write_count;
+
+static void show_transfer_rate(void)
+{
+	static uint64_t prev_read_count, prev_write_count;
+	double rx_rate, tx_rate;
+
+	rx_rate = ((_read_count - prev_read_count) * 8) / (interval*1000.0);
+	tx_rate = ((_write_count - prev_write_count) * 8) / (interval*1000.0);
+	printf("_write_count:%llu prev_write_count:%llu interval:%d\n",_write_count,prev_write_count,interval);
+	printf("rate: tx %.1fkbps /s, rx %.1fkbps /s\n", rx_rate, tx_rate);
+
+	prev_read_count = _read_count;
+	prev_write_count = _write_count;
+}
+uint8_t my_tx[4096];
+uint8_t my_rx[4096];
+static void transfer_buf(int fd, int len)
+{
+	uint8_t *tx;
+	uint8_t *rx;
+	int i;
+
+	tx = malloc(len);
+	if (!tx)
+		pabort("can't allocate tx buffer");
+	for (i = 0; i < len; i++)
+		tx[i] = random();
+
+	rx = malloc(len);
+	if (!rx)
+		pabort("can't allocate rx buffer");
+
+	transfer(fd, tx, rx, len);
+
+	_write_count += len;
+	_read_count += len;
+/*
+	if (mode & SPI_LOOP) {
+		if (memcmp(tx, rx, len)) {
+			fprintf(stderr, "transfer error !\n");
+			hex_dump(tx, len, 32, "TX");
+			hex_dump(rx, len, 32, "RX");
+			exit(1);
+		}
+	}
+*/
+
+}
+
 int main(int argc, char *argv[])
 {
-	int ret = 0;
+	int i,ret = 0;
 	int fd;
+      //printf("==>>>line : %d\n", __LINE__);
 
 	parse_opts(argc, argv);
 
@@ -422,7 +458,10 @@ int main(int argc, char *argv[])
 	printf("spi mode: 0x%x\n", mode);
 	printf("bits per word: %d\n", bits);
 	printf("max speed: %d Hz (%d KHz)\n", speed, speed/1000);
-
+	
+	for (i = 0; i < 4096; i++)
+		my_tx[i] = random();
+	
 	if (input_tx && input_file)
 		pabort("only one of -p and --input may be selected");
 
@@ -430,7 +469,42 @@ int main(int argc, char *argv[])
 		transfer_escaped_string(fd, input_tx);
 	else if (input_file)
 		transfer_file(fd, input_file);
-	else
+	else if (transfer_size) {
+		//astruct timespec last_stat;
+		//clock_gettime(CLOCK_MONOTONIC, &last_stat);
+		struct timeval start;
+		struct timeval end;
+		long sec,usec;
+		double rate,time;
+		gettimeofday(&start, NULL);
+		while (iterations-- > 0) {
+			//struct timespec current;
+
+			//transfer_buf(fd, transfer_size);
+			transfer(fd, my_tx, my_rx, transfer_size);
+			_write_count += transfer_size;
+			_read_count += transfer_size;
+			//clock_gettime(CLOCK_MONOTONIC, &current);
+			//if (current.tv_sec - last_stat.tv_sec > interval) {
+			//	show_transfer_rate();
+			//	last_stat = current;
+			//}
+
+		}
+		gettimeofday(&end, NULL);
+		sec = end.tv_sec - start.tv_sec;
+		usec = end.tv_usec - start.tv_usec;
+		if(usec<0){
+			usec = 1000*1000 + usec;
+			sec--;
+		}
+		printf("%s: time consume sec.ms.us: %ld.%ld.%ld\n",__func__,sec,usec/1000,usec%1000);
+
+		time = (double)sec+(double)usec/1000000;
+		rate = (_write_count * 8)/(time * 1000);
+
+		printf("rate:%.1fkbps/s\n",rate);
+	} else
 		transfer(fd, default_tx, default_rx, sizeof(default_tx));
 
 	close(fd);

@@ -1,7 +1,7 @@
-#ifndef SERIALSENDDATA_H
-#define SERIALSENDDATA_H
+#ifndef SPISENDDATA_H
+#define SPISENDDATA_H
 
 
-int serialsenddata(char *path);
+int spisenddata(char *path);
 
 #endif
