@@ -154,15 +154,31 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 	fscanf(gpio55,"%d",&aaa);
 	printf("the gpio55 value is %d\n",aaa);*/
 	int u=0;
-	while(u<times)
+
+	FILE* fpIO = fopen("/sys/class/gpio/gpio55/value","r");
+	if(fpIO < 0)
 	{
-		ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
+		printf("open the gpio55 is wrong!\n");
+		return;
+	}
+	
+	int gpio55value = 2;
+	while(u<times)
+	{	
+		fscanf(fpIO,"%d",&gpio55value);
+//		printf("open %d the gpio55--===============--- is wrong!\n",gpio55value);
+		while(!gpio55value)
+		{
+			ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
+			u++;
+			break;
+		}
 	/*	if (ret < 1)
 		{
 			pabort("can't send spi message");
 			break;
 		}*/
-		u++;
+		//u++;
 	}
 	gettimeofday(&end_time,NULL);
 	double dif_sec=end_time.tv_sec-start_time.tv_sec;

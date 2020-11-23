@@ -14,6 +14,7 @@ void readserialport(int fd);
 
 char* device;
 char* isread = "no";
+char* at_cmd = "AT";
 
 int main(int argc,char *argv[])
 {
@@ -75,7 +76,12 @@ int main(int argc,char *argv[])
 //   *(data+8)=1099&0XFF;
 //   *(data+7)=(1099>>8)&0XFF;
 //    ret=write(fd,data,12);
-    ret=write(fd,"AT\r\n",4);
+	size_t len = sizeof(at_cmd)/sizeof(at_cmd[0]);
+	printf("the at_cmd length is %d\n",len);
+	char cmd[7]={0};
+	strcpy(cmd,at_cmd);
+	cmd[len-1]='\r';
+    ret=write(fd,cmd,len);
     if(ret<0)
     {
         printf("write fail\n");
@@ -85,6 +91,13 @@ int main(int argc,char *argv[])
 	if(!strcmp("read1",isread))
 	{
 		readserialport(fd);
+	}
+	else if(!strcmp("read10",isread))
+	{
+		for(int j = 0;j < 10;j++)
+		{
+			readserialport(fd);
+		}
 	}
 	else if(!strcmp("read1+",isread))
 	{
@@ -139,7 +152,7 @@ int main(int argc,char *argv[])
 //   *(data+8)=1099&0XFF;
 //   *(data+7)=(1099>>8)&0XFF;
 //    ret=write(fd,data,12);
-    ret=write(fd,"AT\r\n",4);
+    ret=write(fd,"AT\r",4);--------------------------------------
     if(ret<0)
     {
         printf("write fail\n");
@@ -171,7 +184,8 @@ void parse_opts(int argc,char *argv[])
 	static const struct option opts[]=
 	{
 		{"devices",required_argument,NULL,'d'},
-		{"read",required_argument,NULL,'r'}
+		{"read",required_argument,NULL,'r'},
+		{"at",required_argument,NULL,'a'}
 	};
 
 	int c = -1;
@@ -186,6 +200,9 @@ void parse_opts(int argc,char *argv[])
 				break;
 			case 'r':
 				isread = optarg;	
+				break;
+			case 'a':
+				at_cmd = optarg;	
 				break;
 			default:
 				break;
