@@ -29,7 +29,9 @@
 
 static void pabort(const char *s)
 {
+	//stdio,set the s ahead of origin error message.
 	perror(s);
+	//stdlib,make the program stop!
 	abort();
 }
 
@@ -55,6 +57,7 @@ uint8_t default_tx[] = {
 uint8_t default_rx[ARRAY_SIZE(default_tx)] = {0, };
 char *input_tx;
 
+//hex_dump(rx, len, 32, "RX");
 static void hex_dump(const void *src, size_t length, size_t line_size,
 		     char *prefix)
 {
@@ -155,48 +158,86 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 	printf("the gpio55 value is %d\n",aaa);*/
 	int u=0;
 
-	FILE* fpIO = fopen("/sys/class/gpio/gpio55/value","r");
-	if(fpIO < 0)
-	{
-		printf("open the gpio55 is wrong!\n");
-		return;
-	}
+//	FILE* fpIO = fopen("/sys/class/gpio/gpio55/value","r");
+//	if(fpIO < 0)
+//	{
+//		printf("open the gpio55 is wrong!\n");
+//		return;
+//	}
 	
+	printf("start write data\n");
 	int gpio55value = 2;
+	int valuetimes = 0;
 	while(u<times)
 	{	
-		fscanf(fpIO,"%d",&gpio55value);
-//		printf("open %d the gpio55--===============--- is wrong!\n",gpio55value);
-		while(!gpio55value)
+		FILE* fpIO = fopen("/sys/class/gpio/gpio55/value","r");
+		if(fpIO < 0)
 		{
-			ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
-			u++;
-			break;
+//			printf("open the gpio55 is wrong!\n");
+			return;
 		}
+		fscanf(fpIO,"%d",&gpio55value);
+		fclose(fpIO);
+//		printf("the gpio55value is %d,value times is %d\n",gpio55value,++valuetimes);
+		if(!gpio55value)
+		{
+//			printf("send data,times: %d\n",u);
+			ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
+			if (ret < 1)
+				pabort("can't send spi message");
+			u++;	
+
+	//md5sum
+	    	saveeverytimerecfile(u,rx,len);
+			system("touch /spirectest/spirecfilemd5");
+			system("busybox md5sum /spirectest/temp_4096.file > /spirectest/spirecfilemd5");
+			FILE* fpmd5 = fopen("/spirectest/spirecfilemd5","r");
+			char bufff[33];
+			char *p = fgets(bufff,33,fpmd5);
+			fclose(fpmd5);
+			if(p!=NULL)
+			{
+	//			printf("bufff = %s\n",bufff);
+				printf("--%d--\n",u);
+				if(strcmp(bufff,"4c674fe50dea82a62dd3620689265a59") != 0)
+				{
+					FILE* fperr = fopen("/spirectest/spirecfileerror","a+");
+					char errormessage[20];
+					sprintf(errormessage,"error times is:\t%d\n",u);
+					int lenl = fputs(errormessage,fperr);
+	//				printf("%d, %s,---------------------------------------\n",lenl,errormessage);
+					fclose(fperr);
+				}
+			}  
+		 
+
 	/*	if (ret < 1)
 		{
 			pabort("can't send spi message");
 			break;
 		}*/
 		//u++;
+		}
 	}
 	gettimeofday(&end_time,NULL);
 	double dif_sec=end_time.tv_sec-start_time.tv_sec;
-	if (ret < 1)
-		pabort("can't send spi message");
 	double dif_usec=end_time.tv_usec-start_time.tv_usec;
 	printf("runtime:sec:%f , usec:%f\n", dif_sec,dif_usec);
 	
-	if (ret < 1)
-		pabort("can't send spi message");
+//	if (ret < 1)
+//		pabort("can't send spi message");
 
+//verbose:show the TX buffer. cmd -v
 	if (verbose)
 		hex_dump(tx, len, 32, "TX");
 
+//the path of save rx
 	if (output_file) {
 		out_fd = open(output_file, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 		if (out_fd < 0)
 			pabort("could not open output file");
+
+		//printf("--%c,%c\n",rx[0],rx[1]);
 
 		ret = write(out_fd, rx, len);
 		if (ret != len)
@@ -207,6 +248,64 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 
 	if (verbose || !output_file)
 		hex_dump(rx, len, 32, "RX");
+
+	//md5sum
+/*	char listfile[50];
+	sprintf(listfile,"ls /spirectest/spirecfile0*  > /spirectest/spirecfilelist");
+	system(listfile);
+	char buff[80];
+	FILE* listfp = fopen("/spirectest/spirecfilelist","r");
+	char name[50];
+	while(!feof(listfp))
+	{
+		memset(name,0,sizeof(buff));
+		memset(name,0,sizeof(name));
+		char *p = fgets(name,50,listfp);
+//		if(p!=NULL)
+//			printf("buf=%s\n",name);
+		sprintf(buff,"busybox md5sum %s > /spirectest/spirecfilemd5",name);
+		printf("buff=%s\n",buff);
+		system(buff);
+	}   */
+}
+
+void saveresult(int u)
+{
+	int	out_fd = open("/spirectest/spiresult", O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	if (out_fd < 0)
+		pabort("could not open result file");
+
+	fprintf(out_fd,"%d",u);
+
+	close(out_fd);
+}
+
+char savepathcmd[]="touch /spirectest/temp_4096.file";
+char savepathreal[]="/spirectest/temp_4096.file";
+void saveeverytimerecfile(int u,const void *rx,size_t len)
+{
+	int	out_fd = open(savepathreal, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+	if (out_fd < 0)
+	{
+		//pabort("could not open output file");
+	}
+	else{
+		close(out_fd);
+		system("rm /spirectest/temp_4096.file");
+	}
+
+	system(savepathcmd);
+	system(savepathreal);
+	out_fd = open(savepathreal, O_WRONLY | O_CREAT | O_TRUNC, 0666);
+
+	if (out_fd < 0)
+	{
+		pabort("could not open output file");
+	}
+	int	ret = write(out_fd, rx, len);
+	close(out_fd);
+	if (ret != len)
+		pabort("not all bytes written to output file");
 }
 
 static void print_usage(const char *prog)
@@ -225,7 +324,7 @@ static void print_usage(const char *prog)
 	     "  -C --cs-high  chip select active high\n"
 	     "  -3 --3wire    SI/SO signals shared\n"
 	     "  -v --verbose  Verbose (show tx buffer)\n"
-	     "  -p            Send data (e.g. \"1234\\xde\\xad\")\n"
+		 "  -p            Send data (e.g. \"1234\\xde\\xad\")\n"
 	     "  -N --no-cs    no chip select\n"
 	     "  -R --ready    slave pulls low to pause\n"
 	     "  -2 --dual     dual transfer\n"
@@ -351,6 +450,7 @@ static void transfer_escaped_string(int fd, char *str)
 		pabort("can't allocate rx buffer");
 
 	size = unescape((char *)tx, str, size);
+	printf("the char size is %d\n",size);
 	transfer(fd, tx, rx, size);
 	free(rx);
 	free(tx);
@@ -380,6 +480,7 @@ static void transfer_file(int fd, char *filename)
 		pabort("can't allocate rx buffer");
 
 	bytes = read(tx_fd, tx, sb.st_size);
+	//printf("bytes %d,sd.st_size %d\n",bytes,sb.st_size);
 	if (bytes != sb.st_size)
 		pabort("failed to read input file");
 
