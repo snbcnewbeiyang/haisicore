@@ -7,6 +7,7 @@
 //摄氏度和温度之间的换算关系  
 void main(void)
 {
+
 	float fahr,celsius;
 
 //方式1,使用while
