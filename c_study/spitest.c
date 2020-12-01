@@ -38,7 +38,7 @@ static void pabort(const char *s)
 static const char *device = "/dev/spidev1.1";
 static uint32_t mode;
 //typedef unsigned char uin8_t
-//-t --> typedef
+//_t --> typedef
 static uint8_t bits = 8;
 static char *input_file;
 static char *output_file;
@@ -148,33 +148,16 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 	struct timeval start_time;
 	struct timeval end_time;
 	gettimeofday(&start_time,NULL);
-	/*printf("start read gpio value-----\n");
-	FILE* gpio55=fopen("/sys/class/gpio/gpio55/value","r");
-	if(gpio55<0)
-	{
-		printf("open the gpio55 is wrong");
-		return;
-	}
-	int aaa=0;
-	fscanf(gpio55,"%d",&aaa);
-	printf("the gpio55 value is %d\n",aaa);*/
-	int u=0;
-
-//	FILE* fpIO = fopen("/sys/class/gpio/gpio55/value","r");
-//	if(fpIO < 0)
-//	{
-//		printf("open the gpio55 is wrong!\n");
-//		return;
-//	}
-	
+	int u = 0;
 	printf("start write data\n");
 	int gpio55value = 2;
 	int valuetimes = 0;
-	while(u<times)
+	while(u < times)
 	{	
 		FILE* fpIO = fopen("/sys/class/gpio/gpio55/value","r");
 		if(fpIO < 0)
 		{
+			//waste time.
 //			printf("open the gpio55 is wrong!\n");
 			return;
 		}
@@ -184,23 +167,24 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 		if(!gpio55value)
 		{
 //			printf("send data,times: %d\n",u);
+//			SPI_IOC_MESSAGE(1):send and receive
 			ret = ioctl(fd, SPI_IOC_MESSAGE(1), &tr);
 			if (ret < 1)
 				pabort("can't send spi message");
 			u++;	
 
-	//md5sum
-/*	    	saveeverytimerecfile(u,rx,len);
+			//md5sum, normal send data please remove here.
+	    	saveeverytimerecfile(u,rx,len);
 			system("touch /spirectest/spirecfilemd5");
 			system("busybox md5sum /spirectest/temp_4096.file > /spirectest/spirecfilemd5");
 			FILE* fpmd5 = fopen("/spirectest/spirecfilemd5","r");
 			char bufff[33];
 			char *p = fgets(bufff,33,fpmd5);
 			fclose(fpmd5);
-			if(p!=NULL)
+			if(p /*!= NULL*/)
 			{
 	//			printf("bufff = %s\n",bufff);
-				printf("--%d--\n",u);
+	//			printf("--%d--\n",u);
 				if(strcmp(bufff,"4c674fe50dea82a62dd3620689265a59") != 0)
 				{
 					FILE* fperr = fopen("/spirectest/spirecfileerror","a+");
@@ -211,23 +195,12 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 					fclose(fperr);
 				}
 			}  
-*/		 
-
-	/*	if (ret < 1)
-		{
-			pabort("can't send spi message");
-			break;
-		}*/
-		//u++;
 		}
 	}
 	gettimeofday(&end_time,NULL);
 	double dif_sec=end_time.tv_sec-start_time.tv_sec;
 	double dif_usec=end_time.tv_usec-start_time.tv_usec;
 	printf("runtime:sec:%f , usec:%f\n", dif_sec,dif_usec);
-	
-//	if (ret < 1)
-//		pabort("can't send spi message");
 
 //verbose:show the TX buffer. cmd -v
 	if (verbose)
@@ -240,7 +213,6 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 			pabort("could not open output file");
 
 		//printf("--%c,%c\n",rx[0],rx[1]);
-
 		ret = write(out_fd, rx, len);
 		if (ret != len)
 			pabort("not all bytes written to output file");
@@ -250,36 +222,6 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 
 	if (verbose || !output_file)
 		hex_dump(rx, len, 32, "RX");
-
-	//md5sum
-/*	char listfile[50];
-	sprintf(listfile,"ls /spirectest/spirecfile0*  > /spirectest/spirecfilelist");
-	system(listfile);
-	char buff[80];
-	FILE* listfp = fopen("/spirectest/spirecfilelist","r");
-	char name[50];
-	while(!feof(listfp))
-	{
-		memset(name,0,sizeof(buff));
-		memset(name,0,sizeof(name));
-		char *p = fgets(name,50,listfp);
-//		if(p!=NULL)
-//			printf("buf=%s\n",name);
-		sprintf(buff,"busybox md5sum %s > /spirectest/spirecfilemd5",name);
-		printf("buff=%s\n",buff);
-		system(buff);
-	}   */
-}
-
-void saveresult(int u)
-{
-	int	out_fd = open("/spirectest/spiresult", O_WRONLY | O_CREAT | O_TRUNC, 0666);
-	if (out_fd < 0)
-		pabort("could not open result file");
-
-	fprintf(out_fd,"%d",u);
-
-	close(out_fd);
 }
 
 char savepathcmd[]="touch /spirectest/temp_4096.file";
@@ -289,15 +231,16 @@ void saveeverytimerecfile(int u,const void *rx,size_t len)
 	int	out_fd = open(savepathreal, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 	if (out_fd < 0)
 	{
-		//pabort("could not open output file");
+		pabort("could not open output file");
 	}
-	else{
+	else
+	{
 		close(out_fd);
 		system("rm /spirectest/temp_4096.file");
 	}
 
 	system(savepathcmd);
-	system(savepathreal);
+	//system(savepathreal);
 	out_fd = open(savepathreal, O_WRONLY | O_CREAT | O_TRUNC, 0666);
 
 	if (out_fd < 0)
@@ -443,6 +386,7 @@ static void transfer_escaped_string(int fd, char *str)
 	uint8_t *tx;
 	uint8_t *rx;
 
+//eg:int *p = (int*)malloc(sizeof(int)*10),size=40.
 	tx = malloc(size);
 	if (!tx)
 		pabort("can't allocate tx buffer");
