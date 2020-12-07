@@ -189,6 +189,14 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 				pabort("can't send spi message");
 			u++;	
 
+			if(memcmp(rx,tx,len)==0)
+			{
+				printf("000----right--%d--------0000\n",u);
+			}else{
+				printf("000----wrong------------------%d--------0000\n",u);
+				return;
+			}
+
 	//md5sum
 /*	    	saveeverytimerecfile(u,rx,len);
 			system("touch /spirectest/spirecfilemd5");
@@ -201,11 +209,20 @@ static void transfer(int fd, uint8_t const *tx, uint8_t const *rx, size_t len)
 			{
 	//			printf("bufff = %s\n",bufff);
 				printf("--%d--\n",u);
-				if(strcmp(bufff,"4c674fe50dea82a62dd3620689265a59") != 0)
+				//temp_4096.file md5
+			//	if(strcmp(bufff,"4c674fe50dea82a62dd3620689265a59") != 0)
+				if(strcmp(bufff,"afe5cfc603c5e93277eb4a5583166ee5") != 0)
 				{
 					FILE* fperr = fopen("/spirectest/spirecfileerror","a+");
 					char errormessage[20];
 					sprintf(errormessage,"error times is:\t%d\n",u);
+					int lenl = fputs(errormessage,fperr);
+	//				printf("%d, %s,---------------------------------------\n",lenl,errormessage);
+					fclose(fperr);
+				}else{
+					FILE* fperr = fopen("/spirectest/spirecfileright","a+");
+					char errormessage[20];
+					sprintf(errormessage,"right times is:\t%d\n",u);
 					int lenl = fputs(errormessage,fperr);
 	//				printf("%d, %s,---------------------------------------\n",lenl,errormessage);
 					fclose(fperr);
