@@ -26,4 +26,5 @@ void funn(int** p)
 //	*p=(int*)malloc(sizeof(int)*10);
 	int arr[10];
 	*p=arr;
+	printf("--%x\n",p);
 }
